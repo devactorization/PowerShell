@@ -2,15 +2,18 @@
 This script gets any Enterprise Applications whose SAML signing cert is expiring within a given window.
 The cert is stored as the keyCredential property in the service principal.
 The keyCredentials property is used to configure an application’s authentication credentials.
+
+Default SAML signing cert lifetime is 3y
+https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/tutorial-manage-certificates-for-federated-single-sign-on
 #>
 
 #How many days are left before a cert expires
-$DaysTillExpiryThreshold = 60
+$DaysTillExpiryThreshold = 1260
 
 Connect-MgGraph -Scopes Application.Read.All
 
 #Get all service principals
-$allSPs = Get-MgServicePrincipal -All | ?{$_.ServicePrincipalType -ne "ManagedIdentity"}
+$allSPs = Get-MgServicePrincipal -All | Where-Object{$_.ServicePrincipalType -ne "ManagedIdentity"}
 
 #Get only service principals that have key credentials
 $SpsWithKeyCreds = $allSPs | Where-Object{$null -ne $_.KeyCredentials}
