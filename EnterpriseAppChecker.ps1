@@ -8,7 +8,7 @@ https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/tutorial-manage
 #>
 
 #How many days are left before a cert expires
-$DaysTillExpiryThreshold = 1260
+$DaysTillExpiryThreshold = 60
 
 Connect-MgGraph -Scopes Application.Read.All
 
