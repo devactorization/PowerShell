@@ -5,6 +5,11 @@ The keyCredentials property is used to configure an application’s authenticati
 
 Default SAML signing cert lifetime is 3y
 https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/tutorial-manage-certificates-for-federated-single-sign-on
+
+ToDo: Add App Registration code https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/scripts/powershell-export-apps-with-expiring-secrets
+
+https://learn.microsoft.com/en-us/entra/identity-platform/app-objects-and-service-principals?tabs=browser
+
 #>
 
 #How many days are left before a cert expires
