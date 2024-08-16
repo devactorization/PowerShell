@@ -36,6 +36,9 @@
 
     .EXAMPLE
     PS> Get-ServicePrincipalNotifications -Update -NotificationEmail user@contoso.com -ChooseApps
+    
+    .LINK
+    https://github.com/mister-dj/PowerShell
 #>
 
 param (
