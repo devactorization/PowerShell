@@ -5,6 +5,7 @@ This repo contains PowerShell scripts and code snippets. The code is largely use
 High level table of contents:
 * Graph Powershell - this folder contains tooling for working with Graph API in PowerShell e.g. a script for granting Graph API permissions to Managed Identities.
 * Entra Tools - this folder contains tooling for working with Entra ID, e.g. a script for checking for expiring Enterprise App/App Registration credentials and secrets.
+* PowerZen - custom PowerShell module for working with the Zendesk API to create/update tickets. Only designed for basic functionality.
 
 # Contribute
 If you would like to contribute to these tools, please open a pull request.
