@@ -101,7 +101,7 @@ function Get-ServicePrincipalNotifications {
         Write-Host -ForegroundColor Green "Getting service principals, this may take a while..."
         $FilteredSPs = GetServicePrincipals
 
-        $FilteredSPs | Format-Table DisplayName,Id,NotificationEmailAddresses,ServicePrincipalType
+        $FilteredSPs # | Format-Table DisplayName,Id,NotificationEmailAddresses,ServicePrincipalType
     }
 
     elseif($Update){
