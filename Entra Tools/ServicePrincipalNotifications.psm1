@@ -84,7 +84,7 @@ function Get-ServicePrincipalNotifications {
         catch{
             Write-Host -ForegroundColor Red "Failed to update app " $App.DisplayName
         }
-    
+    }
     if ($List){
         Write-Host -ForegroundColor Green "Getting service principals, this may take a while..."
         $FilteredSPs = GetServicePrincipals
