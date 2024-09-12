@@ -122,8 +122,6 @@ function Get-ServicePrincipalNotifications {
 
         Write-Host -ForegroundColor Green "Completed."
     }
-
-    Disconnect-MgGraph | Out-Null
 }
 
 Export-ModuleMember Get-ServicePrincipalNotifications
