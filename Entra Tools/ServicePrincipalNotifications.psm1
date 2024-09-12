@@ -55,10 +55,7 @@ function Get-ServicePrincipalNotifications {
         [Parameter(Mandatory = $false, ParameterSetName = 'Update', Position = 2)]
         [switch]$ChooseApps,
         [Parameter(Mandatory = $false, ParameterSetName = 'Update', Position = 3)]
-        [switch]$Force,
-        [Parameter(Mandatory = $false, ParameterSetName = 'List', Position = 1)]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Update', Position = 4)]
-        [switch]$Identity
+        [switch]$Force
     )
 
     #List of apps to ignore based on DisplayName attribute
@@ -87,16 +84,7 @@ function Get-ServicePrincipalNotifications {
         catch{
             Write-Host -ForegroundColor Red "Failed to update app " $App.DisplayName
         }
-    }
-
-    if ($List){
-        if($Identity){
-            Connect-MgGraph -Scopes "Application.Read.All" -NoWelcome -Identity
-        }
-        else{
-            Connect-MgGraph -Scopes "Application.Read.All" -NoWelcome
-        }
-        
+    
 
         Write-Host -ForegroundColor Green "Getting service principals, this may take a while..."
         $FilteredSPs = GetServicePrincipals
@@ -111,13 +99,6 @@ function Get-ServicePrincipalNotifications {
             $Answer = Read-Host -Prompt "Continue (Y/N)?"
             if($Answer -ne "y"){Exit}
 
-            if($Identity){
-                Connect-MgGraph -Scopes "Application.ReadWrite.All" -NoWelcome -Identity
-            }
-            else{
-                Connect-MgGraph -Scopes "Application.ReadWrite.All" -NoWelcome
-            }
-
             $FilteredSPs = GetServicePrincipals
 
             foreach ($App in $FilteredSPs){
@@ -128,8 +109,6 @@ function Get-ServicePrincipalNotifications {
             Write-Host -ForegroundColor Red "WARNING: you are updating the notification email for applications. Please confirm that you understand this and want to continue..."
             $Answer = Read-Host -Prompt "Continue (Y/N)?"
             if($Answer -ne "y"){Exit}
-
-            Connect-MgGraph -Scopes "Application.ReadWrite.All" -NoWelcome
 
             Write-Host -ForegroundColor Green "Getting service principals, this may take a while..."
             $FilteredSPs = GetServicePrincipals
