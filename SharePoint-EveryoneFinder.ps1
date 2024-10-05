@@ -1,4 +1,5 @@
-# This script 
+# This script finds SharePoint sites with the "everyone except external users" permission
+# Please note that this script may take several hours to run
 
 Import-Module pnp.powershell
 
