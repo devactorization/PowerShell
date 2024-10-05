@@ -1,0 +1,34 @@
+<#
+This code snippet contains a workaround for a known (but not officially acknowledged as of 10/5/2024) issue.
+The issue scope is that webhook payload data is malformed when the webhook job runs on a hybrid worker (Azure sandbox not affected).
+
+https://learn.microsoft.com/en-us/azure/automation/automation-webhooks?tabs=portal#webhook-properties
+Expected behavior is that the webhook payload will be deserialized and converted into a pscustomobject with the name, header, and body as properties of the object.
+This is broken on hybrid workers, and results in $webhookData being passed as a single string instead, one which is not valid JSON so you can't just pass it through convertfrom-json.
+
+The issue has existed since at least July 12, 2024 per https://learn.microsoft.com/en-us/answers/questions/1811088/webhook-payload-runon-azure-vs-hybrid-worker
+It seems like it may be a lingering issue from PowerShell 7.1 runtime environments that is simply not acknowledged as impacting 7.2: https://learn.microsoft.com/en-us/azure/automation/automation-runbook-types?tabs=lps71%2Cpy10#limitations-and-known-issues
+
+I've opened a support ticket with Microsoft through my work, but am publishing this workaround since *if* Microsoft ever fixes this, it will be far in the future given their track record.
+
+NOTE: remove this comment block before using this in a runbook since iirc the param block needs to be first, and comments will break the runbook if place before it.
+#>
+
+Param (
+    [object] $WebhookData
+)
+
+
+if($WebhookData.RequestBody){
+    $requestBody = $WebhookData.RequestBody | ConvertFrom-Json
+}
+else{
+    #Parse malformed JSON to extract webhook request body
+    #Malformation is due to Microsoft bug as of 10/5/2024, it necessitates using this workaround on hybrid workers
+    $requestBody = ($WebhookData -replace '.*RequestBody:(.*),RequestHeader:.*', '$1') | ConvertFrom-Json
+}
+
+
+<#
+Insert your code here
+#>
