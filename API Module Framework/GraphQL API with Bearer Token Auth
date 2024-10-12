@@ -1,0 +1,243 @@
+<#
+Written by Don Morgan 2024
+This template module is written to help work with Monday.com's API, which is GraphQL
+Resources:
+    https://engagestar.monday.com/apps/playground
+    https://developer.monday.com/api-reference/reference/about-the-api-reference
+
+I hate GraphQL, give me REST please... 
+
+Change the following bits and pieces to customize it to your API:
+- cmdlet nouns
+- GraphQL queries in each cmdlet (you poor soul)
+- Base API URL in the "InvokeGraphQlQuery" internal function
+- Error messages in the "InvokeGraphQlQuery" internal function (they reference the sample cmdlet names)
+
+
+Notes:
+- GraphQL queries are designed to be very dynamic, and as such require some finagling of text in ways that get a bit messy in PowerShell
+    To assist with this, the FormatColumn internal function helps to flatten a hashtable object into properly formatted text that can be inserted into the query.
+- At least for Monday.com's API, column names/types and values are both case sensitive, so 'status=done' is different than 'Status=Done' and will fail if the case is not correct.
+#>
+
+
+########## Begin Internal functions ##########
+function InvokeGraphQlQuery {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Query
+    )
+
+    $BaseApiUrl = "https://api.monday.com/v2/"
+
+    #Make sure the ENV is already set for the API token and auth headers
+    if($null -eq $Env:MondayApiKey){
+        throw 'please run the "Connect-MondayApi" cmdlet first'
+    }
+
+    $headers = @{}
+    $headers.Add("Authorization" , "bearer $Env:MondayApiKey")
+    $headers.Add("Content-Type","application/json")
+
+    if($env:MondayCmdletVerbose -ge 1){
+        Write-Host -ForegroundColor Yellow "API query value: $Query"
+    }
+
+    try{
+        $response = Invoke-RestMethod $Env:MondayApiUrl -Method 'POST' -Headers $headers -Body $Query
+        Write-Output $response.data
+    }
+    catch{
+        Write-Error "Failed to invoke query $_"
+    }
+}
+
+function FormatColumns{
+    param(
+        [Parameter(Mandatory=$true)]
+        [object]$ColumnObj
+    )
+
+    #Fuck this weird JSON and non-JSON in JSON nonsense... I miss REST APIs :(
+    #Convert columns object and flatten into single-line string and escape double quotes
+    $columnsJson = ($ColumnObj | ConvertTo-Json)
+    $FormattedColumns = $columnsJson.ToString().Replace('"','\\\"')
+    $FormattedColumns = $FormattedColumns.Replace("`r","").replace("`n",'').Replace("   ",'').Replace("  ",'').Replace(' \','\')
+    Write-Output $FormattedColumns
+}
+
+########## End Internal Functions ##########
+function Connect-MondayApi {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApiKey
+    )
+
+    $BaseApiUrl = "https://api.monday.com/v2/"
+
+    #Build headers with auth token and content type
+    $hdr = @{}
+    $hdr.Add("Authorization" , "bearer $ApiKey")
+    $hdr.Add("Content-Type","application/json")
+
+
+
+    $body = '{"query":"query {account{id}}"}'
+
+    $response = Invoke-RestMethod $BaseApiUrl -Method 'POST' -Headers $hdr -Body $body
+    $Account = $response.data.account.id
+    if($null -ne $Account){
+        #Set environment variables for reuse in other cmdlets
+        $Env:MondayApiKey = $ApiKey
+        $Env:MondayApiUrl = $BaseApiUrl
+        Write-Host -ForegroundColor Green "Connected to account id $Account"
+    }
+}
+
+function Set-MondayVerbosity{
+    param(
+        [ValidatePattern("^[0-2]")]
+        [int]$Level,
+        [switch]$Disable
+    )
+
+    switch ($Level) {
+        1{
+            $env:MondayCmdletVerbose = $Level
+            Write-Host -ForegroundColor Yellow "Verbosity set to $Level for Monday API cmdlets"
+        }
+        2{
+            $env:MondayCmdletVerbose = $Level
+            $VerbosePreference = 'Continue'
+            Write-Host -ForegroundColor Yellow "Verbosity set to $Level for Monday API cmdlets, including PowerShel VerbosePreference"
+        }
+    }
+    if($Disable){
+        $env:MondayCmdletVerbose = 0
+        $VerbosePreference = 'SilentlyContinue'
+        Write-Host -ForegroundColor Yellow "Verbosity disabled for Monday API cmdlets"
+    }
+}
+
+function Get-MondayWorkspace {
+    param(
+        [Parameter(Mandatory = $false)]
+        [long]$Id = 0
+    )
+
+    if($Id -eq 0){
+        $Query = '{"query":"query{workspaces{name,id,state,kind,description,is_default_workspace,created_at}}"}'
+    }
+    else{
+        $Query = ('{"query":"query{workspaces(ids:$Id){name,id,state,kind,description,is_default_workspace,created_at}}"}').Replace('$Id',$Id)
+    }
+
+    $Result = (InvokeGraphQlQuery -Query $Query).workspaces
+
+    Write-Output $Result
+}
+
+function Get-MondayBoard {
+    param(
+        [Parameter(ParameterSetName = "ByBoardId")]
+        [long]$Id = 0,
+        [Parameter(ParameterSetName = "ByWorkspaceId")]
+        [long]$WorkspaceId = 0,
+        [Parameter(ParameterSetName = "All")]
+        [switch]$All
+    )
+
+    #Build queries based on params
+    if($PsCmdlet.ParameterSetName -eq "All"){
+        $Query = '{"query":"query{boards{name,id,board_kind,description,url,workspace{id},state,columns{id,type,title}}}"}'
+    }
+
+    if($PsCmdlet.ParameterSetName -eq "ByBoardId"){
+            $Query = ('{"query":"query{boards(ids:$Id){name,id,board_kind,description,url,workspace{id},state,columns{id,type,title}}}"}').Replace('$Id',$Id)
+    }
+
+    if($PsCmdlet.ParameterSetName -eq "ByWorkspaceId"){
+        $Query = ('{"query":"query{boards(workspace_ids:$Id){name,id,board_kind,description,url,workspace{id},state,columns{id,type,title}}}"}').Replace('$Id',$WorkspaceId)
+    }
+
+
+    $Result = (InvokeGraphQlQuery -Query $Query).boards
+
+    Write-Output $Result
+}
+
+function Get-MondayItemGroup {
+    param(
+        [Parameter(Mandatory = $true)]
+        [long]$BoardId
+    )
+
+    $Query = ('{"query":"query{boards(ids:$BoardId){groups{id,title}}}"}').Replace('$BoardId',$BoardId)
+    
+    $Result = (InvokeGraphQlQuery -Query $Query).boards.groups
+
+    Write-Output $Result
+}
+
+function Get-MondayItem {
+    param(
+        [Parameter(Mandatory = $true)]
+        [long]$BoardId
+    )
+
+    #Get column Ids and format them to add to the query. Need to escape the double quotes with a backslash
+    $Columns = (Get-MondayBoard -Id $BoardId).columns
+    $ColumnIdList = foreach ($Id in $Columns.id){
+        $str = '\"' + $Id + '\"'
+        Write-Output $str
+    }
+    $FormattedColumnIdList = '[' + ($ColumnIdList -join ',') + ']'
+    
+
+    $Query = ('{"query":"query{boards(ids:$BoardId){items_page(limit:500){items{id,name,group{id,title}state,url,updated_at,column_values(ids:$FormattedColumnIdList){id,value}}}}}"}').Replace('$BoardId',$BoardId).Replace('$FormattedColumnIdList',$FormattedColumnIdList)
+    
+    $Result = (InvokeGraphQlQuery -Query $Query).boards.items_page.items
+
+    Write-Output $Result
+}
+
+function New-MondayItem {
+    param(
+        [Parameter(Mandatory = $true)]
+        [long]$BoardId,
+        [Parameter(Mandatory = $true)]
+        [string]$ItemName,
+        [Parameter(Mandatory = $false)]
+        [string]$GroupId,
+        [Parameter(Mandatory = $false)]
+        [object]$ColumnValues = $null
+    )
+
+    #Note that both the column name/type, and the value (for enums like status=done at least) are both case sensitive :| 
+
+    if($ColumnValues){
+        $FormattedColumns = FormatColumns($ColumnValues)
+        #GraphQL ain't pretty in PowerShell
+        $Query = '{"query":"mutation{create_item(board_id:$BoardId,group_id:\"$GroupId\",item_name:\"$ItemName\",column_values:\"$FormattedColumns\"){id}}"}'
+        $Query = $Query.Replace('$BoardId',$BoardId)
+        $Query = $Query.Replace('$GroupId',$GroupId)
+        $Query = $Query.Replace('$ItemName',$ItemName)
+        $Query = $Query.Replace('$FormattedColumns',$FormattedColumns)
+    }
+    else{
+        $Query = '{"query":"mutation{create_item(board_id:$BoardId,group_id:\"$GroupId\",item_name:\"$ItemName\"){id}}"}'
+        $Query = $Query.Replace('$BoardId',$BoardId)
+        if($GroupId){
+            $Query = $Query.Replace('$GroupId',$GroupId)
+        }
+        else{
+            $Query = $Query.Replace(',group_id:\"$GroupId\"','')
+        }
+        $Query = $Query.Replace('$ItemName',$ItemName)
+    }
+
+    $Result = (InvokeGraphQlQuery -Query $Query).create_item.id
+
+    Write-Output $Result
+
+}

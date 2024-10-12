@@ -1,0 +1,109 @@
+<#
+Template code - written by Don Morgan, October 2024
+
+This template is for RESTful APIs which use bearer tokens for authentication.
+
+Change the following bits and pieces to customize it to your API:
+- cmdlet nouns
+- API endpoints in each cmdlet
+- Base API URL in the "InvokeModuleApi" internal function
+- Error messages in the "InvokeModuleApi" internal function (they reference the sample cmdlet names)
+
+
+Notes:
+- "Get" cmdlets are generally written to be able to get either all objects (e.g. get all customers) or a specific one, by ID
+- Generally, a given cmdlet is just changing the API endpoint that is called, and maybe has an arbitrary object passed as the body. This allows the InvokeModuleApi internal function to be called and enables good code re-usability.
+- For "Set" cmdlets, the parameters will vary and sometimes not all parameters will be used, e.g. if you are creating a new contact and specifying a phone number but not a country code. This is why I use the $PSBoundParameters automatic variable and a nifty trick to dynamically build the hashtable which ultimately is converted to JSON and passed as the body of the API call. Also note that in this example, the API endpoint for creating a new contact includes a company ID so that parameter is not included in the dynamically generated hashtable/body.
+
+#>
+
+
+########## Begin Internal functions ##########
+function InvokeModuleApi {
+    param(
+        [Parameter(Mandatory = $true)]
+        [validatePattern('/.*')] #Require the endpoint start with a slash, e.g. '/account-info/v3/details'
+        [string]$Endpoint,
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("Get","Post")]
+        [string]$Method = "get",
+        [Parameter(Mandatory = $false)]
+        $Body
+    )
+
+    $BaseApiUrl = "https://api.hubapi.com"
+
+    #Make sure the ENV is already set for the API token and auth headers
+    if($null -eq $Env:HubSpotApiKey){
+        throw 'please run the "Connect-HubSpotApi" cmdlet first'
+    }
+
+    $ApiKey =  $Env:HubSpotApiKey
+
+    $Uri = $BaseApiUrl + $Endpoint
+
+    $Headers = @{
+        "Content-Type" = "application/json"
+        "accept" = "application/json"
+        "Authorization" = "Bearer $ApiKey"
+    }
+
+    if($Body){
+        $response = Invoke-RestMethod $Uri -Method $Method -Headers $Headers -body $Body
+    }
+    else{
+        $response = Invoke-RestMethod $Uri -Method $Method -Headers $Headers
+    }
+
+    return $response
+}
+
+########## End Internal Functions ##########
+function Connect-HubSpotApi {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApiKey
+    )
+
+    $BaseApiUrl = "https://api.hubapi.com"
+
+    #Build headers with auth token and content type
+    $Headers = @{
+        "Content-Type" = "application/json"
+        "accept" = "application/json"
+        "Authorization" = "Bearer $ApiKey"
+    }
+
+    #Using this API endpoint to test the connection
+    $AccountEndpoint = "/account-info/v3/details"
+
+    $Uri = $BaseApiUrl + $AccountEndpoint
+    $response = Invoke-RestMethod $Uri -Method Get -Headers $Headers
+
+    $AccountNumber = $response.portalId
+
+    if($null -ne $AccountNumber){
+        #Set environment variable for reuse in other cmdlets
+        $Env:HubSpotApiKey = $ApiKey
+        Write-Host -ForegroundColor Green "Connected to account id $AccountNumber"
+    }
+}
+
+function Get-HubSpotDeal {
+    param(
+        [Parameter(Mandatory = $false)]
+        [long]$DealId
+    )
+
+    $DealsEndpoint = "/crm/v3/objects/deals"
+
+    if($DealId){
+        $DealsEndpoint = $DealsEndpoint + '/' + $DealId
+        $Req = InvokeModuleApi -Endpoint $DealsEndpoint
+        Return $Req
+    }
+    else{
+        $Req = InvokeModuleApi -Endpoint $DealsEndpoint
+        Return $Req.results
+    }
+}
