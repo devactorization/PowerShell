@@ -1,3 +1,5 @@
+name: Publish GraphMailMessage
+
 on:
     push:
         paths:
