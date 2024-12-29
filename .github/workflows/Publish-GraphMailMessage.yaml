@@ -11,5 +11,5 @@ jobs:
         - name: Publish
           env:
             APIKEY: ${{ secrets.POSH_GALLERY_API_KEY }}
-          run: .\Modules\publish.ps1 -TargetFolder "GraphMailMessage"
+          run: ./Modules/publish.ps1 -TargetFolder "GraphMailMessage"
           shell: pwsh
