@@ -110,3 +110,5 @@ function Send-GraphMailMessage{
 
     Invoke-RestMethod -Method POST -Uri $URL -Headers $headers -Body $BodyJsonsend
 }
+
+Export-ModuleMember Send-GraphMailMessage
