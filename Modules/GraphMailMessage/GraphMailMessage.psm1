@@ -15,7 +15,7 @@ function Send-GraphMailMessage{
 
 
     <#
-    This snippet is used for sending email using Microsoft Graph. It's a good replacement for send-mailmessage.
+    This function is used for sending email using Microsoft Graph. It's a good replacement for send-mailmessage.
 
     Note: this is meant to be ran as an Azure runbook with a managed identity. Sender address must be a valid user.
 

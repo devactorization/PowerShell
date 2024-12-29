@@ -1,0 +1,15 @@
+on:
+    push:
+        paths:
+            - 'Modules/GraphMailMessage/**'
+jobs:
+    build:
+      name: Publish
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - name: Publish
+          env:
+            APIKEY: ${{ secrets.POSH_GALLERY_API_KEY }}
+          run: .\Modules\publish.ps1 -TargetFolder "GraphMailMessage"
+          shell: pwsh
