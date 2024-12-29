@@ -24,7 +24,6 @@ function Send-GraphMailMessage{
     NOTE: the managed identity must be granted the Mail.Send permission
     https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0&tabs=http#permissions
     https://techcommunity.microsoft.com/t5/azure-integration-services-blog/grant-graph-api-permission-to-managed-identity-object/ba-p/2792127
-
     #>
 
 
