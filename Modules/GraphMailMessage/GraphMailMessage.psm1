@@ -16,7 +16,6 @@ function Send-GraphMailMessage{
 
     <#
     This function is used for sending email using Microsoft Graph. It's a good replacement for send-mailmessage.
-
     Note: this is meant to be ran as an Azure runbook with a managed identity. Sender address must be a valid user.
 
     This is largely based on https://www.techguy.at/send-mail-with-attachment-powershell-and-microsoft-graph-api/
