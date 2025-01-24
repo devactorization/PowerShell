@@ -12,6 +12,9 @@ Usage examples:
 
 #Uninstall the CI-Hub extension:
 .\AdobeExtensionInstaller.ps1 -Uninstall -ExtensionName CI_Hub_CC_Connector
+
+
+Folder to use for Intune app detection rule: "C:\Program Files (x86)\Common Files\Adobe\CEP\extensions\CI_Hub_CC_Connector"
 #>
 
 param(
