@@ -28,6 +28,6 @@ function Get-CertInfo {
 }
 
 $Result = Get-CertInfo -Hostname "google.com"
-$Result | fl *
+$Result | Format-List *
 
 
