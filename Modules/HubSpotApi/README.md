@@ -104,6 +104,16 @@ $AssociatedCompanies.properties.name
 #Remove association
 Remove-HubSpotAssociation @BigSplat
 
+#Create some notes
+$Note = New-HubSpotNote -AssociatedObjectId $SpecificCompany.id -AssociatedObjectType Company -NoteBody "Hello from the API"
+$Note = New-HubSpotNote -AssociatedObjectId $NewDeal.id -AssociatedObjectType Deal -NoteBody "Hello from the API"
+
+#Get contacts
+$Contacts = Get-HubSpotContact
+
+#Get specific contact
+$SpecificContact = Get-HubSpotContact -Id "64071932041"
+
 ```
 
 

@@ -87,6 +87,13 @@ function InvokeHubSpotApi {
     
     return $result
 }
+
+#Used for generating properly formatted UTC timestamps for hs_timestamp. Example: 2021-11-12T15:48:22Z
+function GetHubSpotTimeStamp {
+    $Timestamp = [DateTime]::UtcNow.ToString('u')
+    Return $Timestamp.Replace(' ','T')
+}
+
 ########## End Internal Functions ##########
 function Connect-HubSpotApi {
     param(
@@ -249,8 +256,6 @@ function Get-HubSpotCompany {
     param(
         [Parameter(Mandatory = $false)]
         [string]$Id,
-        [Parameter(Mandatory = $False)]
-        [switch]$All,
         [Parameter(Mandatory = $false)]
         [string]$Properties = $null
     )
@@ -384,4 +389,124 @@ function Remove-HubSpotAssociation {
     $Req = InvokeHubSpotApi -Endpoint $Endpoint -Body $Body -Method Post
     
     Return $Req
+}
+
+#https://developers.hubspot.com/docs/reference/api/crm/objects/contacts#get-%2Fcrm%2Fv3%2Fobjects%2Fcontacts%2F%7Bcontactid%7D
+function Get-HubSpotContact {
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Id,
+        [Parameter(Mandatory = $false)]
+        [string]$Properties = $null,
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("contacts","companies","deals")]
+        [string]$AssociatedObjectType
+    )
+
+    $Endpoint = "/crm/v3/objects/contacts"
+
+    if($Id){
+        $Endpoint += "/$Id"
+    }
+    if($AssociatedObjectType){
+        $Endpoint += "?associations=$AssociatedObjectType"
+    }
+    if($Properties){
+        if($Endpoint.Contains('?')){
+            $Endpoint += "&properties=$Properties"
+        }
+        else{
+            $Endpoint += "?properties=$Properties"
+        }
+    }
+
+    $Req = InvokeHubSpotApi -Endpoint $Endpoint
+
+    Return $Req
+}
+
+#https://developers.hubspot.com/docs/guides/api/crm/engagements/notes#retrieve-notes
+function Get-HubSpotNote {
+    param(
+        [Parameter(Mandatory = $false,ParameterSetName = "SingleNote")]
+        [string]$Id,
+        [Parameter(Mandatory = $false,ParameterSetName = "SingleNote")]
+        [Parameter(Mandatory = $false,ParameterSetName = "NotesByAssociation")]
+        [string]$Properties = $null,
+        [Parameter(Mandatory = $true,ParameterSetName = "NotesByAssociation")]
+        [ValidateSet("contacts","companies","deals")]
+        [string]$AssociatedObjectType
+    )
+
+    $Endpoint = "/crm/v3/objects/notes"
+
+    if($Id){
+        $Endpoint += "/$Id"
+    }
+    if($AssociatedObjectType){
+        $Endpoint += "?associations=$AssociatedObjectType"
+    }
+    if($Properties){
+        if($Endpoint.Contains('?')){
+            $Endpoint += "&properties=$Properties"
+        }
+        else{
+            $Endpoint += "?properties=$Properties"
+        }
+    }
+
+    $Req = InvokeHubSpotApi -Endpoint $Endpoint
+    if($Req.results){
+        return $Req.results
+    }
+    else{
+        Return $Req
+    }
+}
+
+#https://developers.hubspot.com/docs/guides/api/crm/engagements/notes#create-a-note
+function New-HubSpotNote {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AssociatedObjectId,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Contact","Company","Deal")]
+        [string]$AssociatedObjectType,
+        [Parameter(Mandatory = $true)]
+        [string]$NoteBody,
+        [Parameter(Mandatory = $false)]
+        [string]$Timestamp = "auto"
+    )
+
+    $Endpoint = "/crm/v3/objects/notes"
+
+    #Generate timestamp using current date if none provided
+    if($Timestamp -eq "auto"){
+        $Timestamp = GetHubSpotTimeStamp
+    }
+
+    $Body = @{
+        properties = @{
+            hs_note_body = $NoteBody
+            hs_timestamp = $Timestamp
+        }
+    } | ConvertTo-Json
+
+    $Note = InvokeHubSpotApi -Endpoint $Endpoint -Body $Body -Method Post
+
+    #Now need to associate the note with something
+
+    $AssociationType = $AssociatedObjectType + "_to_note"
+    
+    $Splat = @{
+        BaseObject = $AssociatedObjectType
+        BaseObjectId = $AssociatedObjectId
+        RelatedObject = "Note"
+        RelatedObjectId = $Note.id
+        Type = $AssociationType
+    }
+    $Req = New-HubSpotAssociation @Splat
+
+    return $Req
+
 }
