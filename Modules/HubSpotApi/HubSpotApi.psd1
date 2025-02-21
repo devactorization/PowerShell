@@ -12,7 +12,7 @@
 RootModule = 'HubSpotApi.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.2'
+ModuleVersion = '0.0.3'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -116,7 +116,7 @@ PrivateData = @{
         # RequireLicenseAcceptance = $false
 
         # External dependent modules of this module
-        ExternalModuleDependencies = @('Microsoft.PowerShell.Utility')
+        #ExternalModuleDependencies = @('Microsoft.PowerShell.Utility')
 
     } # End of PSData hashtable
 
