@@ -12,7 +12,7 @@
 RootModule = 'HubSpotApi.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.3'
+ModuleVersion = '0.0.4'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -33,7 +33,7 @@ Copyright = '(c) Don Morgan. All rights reserved.'
 Description = 'This module allows for interacting with the HubSpot API via native PowerShell cmdlets.'
 
 # Minimum version of the PowerShell engine required by this module
-# PowerShellVersion = ''
+PowerShellVersion = '7.2'
 
 # Name of the PowerShell host required by this module
 # PowerShellHostName = ''
@@ -116,7 +116,7 @@ PrivateData = @{
         # RequireLicenseAcceptance = $false
 
         # External dependent modules of this module
-        #ExternalModuleDependencies = @('Microsoft.PowerShell.Utility')
+        ExternalModuleDependencies = @('Microsoft.PowerShell.Utility')
 
     } # End of PSData hashtable
 
