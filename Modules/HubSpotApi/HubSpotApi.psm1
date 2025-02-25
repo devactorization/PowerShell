@@ -220,7 +220,7 @@ function New-HubSpotDeal {
 
     $Endpoint = "/crm/v3/objects/deals"
 
-    $Req = InvokeHubSpotApi -Endpoint $Endpoint -Body $Properties -Method Post
+    $Req = InvokeHubSpotApi -Endpoint $Endpoint -Body $PropertiesObject -Method Post
     Return $Req
 }
 
