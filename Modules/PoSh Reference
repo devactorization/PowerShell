@@ -19,7 +19,7 @@ function MyFunc{
     $Body = $Attributes | ConvertTo-Json
 
 
-    switch($MyParm){
+    switch($PsCmdlet.ParameterSetName){
         "One"{write-host "One"}
         "Two"{Write-Host "two"}
     }
