@@ -1,0 +1,27 @@
+#This is a quick reference sheet for commonly used code snippets I reference
+#Not meant to be a usable function
+
+function MyFunc{
+    param(
+        [Parameter(Mandatory = $true, ParameterSetName = "ParamSet")]
+        [ValidateSet("One","Two")]
+        [string]$MyParm
+    )
+
+    #Dynamically create a hashtable with whatever attributes were specified. Have to do this since you can't have a null key value in hashtables and you may not use all params when creating a new object
+    $Attributes = @{}
+    $Params = $PSBoundParameters
+    $Keys = $PsBoundParameters.Keys
+    foreach ($Key in $Keys){
+        $Attributes.Add($Key,$Params.$Key)
+    }
+
+    $Body = $Attributes | ConvertTo-Json
+
+
+    switch($MyParm){
+        "One"{write-host "One"}
+        "Two"{Write-Host "two"}
+    }
+}
+
