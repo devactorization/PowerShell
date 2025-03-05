@@ -6,13 +6,14 @@ Note: this is written to use the v3 HubSpot API
 #>
 
 ########## Begin Internal functions ##########
+#Main internal function that handles calling the API
 function InvokeHubSpotApi {
     param(
         [Parameter(Mandatory = $true)]
         [validatePattern('/.*')] #Require the endpoint start with a slash, e.g. '/account-info/v3/details'
         [string]$Endpoint,
         [Parameter(Mandatory = $false)]
-        [ValidateSet("Get","Post","Delete")]
+        [ValidateSet("Get","Post","Delete","Patch")]
         [string]$Method = "get",
         [Parameter(Mandatory = $false)]
         $Body
@@ -47,6 +48,7 @@ function InvokeHubSpotApi {
 
         $response = Invoke-RestMethod $Uri -Method $Method -Headers $Headers -Body $Body
         
+        #If response is paginated, keep getting all pages
         if($response.paging.next.link){
             if($Env:HubSpotApiVerbosity){
                 Write-Host "API query result has pagination" -ForegroundColor Yellow
@@ -60,6 +62,7 @@ function InvokeHubSpotApi {
                 $result += $response.results
             }
         }
+        #if no pagination, just return the response
         else{
             $result = $response
         }
@@ -94,6 +97,26 @@ function GetHubSpotTimeStamp {
     Return $Timestamp.Replace(' ','T')
 }
 
+#Used for debugging
+function Set-HubSpotApiVerbosity {
+    param(
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("None","Verbose","11")]
+        $VerboseLevel
+    )
+
+    if($VerboseLevel -eq "Verbose"){
+        $Env:HubSpotApiVerbosity = "Verbose"
+    }
+    elseif($VerboseLevel -eq "11"){
+        $Env:HubSpotApiVerbosity = "Verbose"
+        $VerbosePreference = 'Continue'
+    }
+    else{
+        $Env:HubSpotApiVerbosity = $null
+        $VerbosePreference = 'SilentlyContinue'
+    }
+}
 ########## End Internal Functions ##########
 function Connect-HubSpotApi {
     param(
@@ -125,30 +148,14 @@ function Connect-HubSpotApi {
         Write-Host -ForegroundColor Green "Connected to account id $AccountNumber"
     }
 }
-
-#Used for debugging
-function Set-HubSpotApiVerbosity {
-    param(
-        [Parameter(Mandatory = $false)]
-        [ValidateSet("None","Verbose","11")]
-        $VerboseLevel
-    )
-
-    if($VerboseLevel -eq "Verbose"){
-        $Env:HubSpotApiVerbosity = "Verbose"
-    }
-    elseif($VerboseLevel -eq "11"){
-        $Env:HubSpotApiVerbosity = "Verbose"
-        $VerbosePreference = 'Continue'
-    }
-    else{
-        $Env:HubSpotApiVerbosity = $null
-        $VerbosePreference = 'SilentlyContinue'
-    }
-}
-
-#https://developers.hubspot.com/docs/guides/api/crm/pipelines
 function Get-HubSpotPipeline {
+    <#
+    .SYNOPSIS
+        Gets pipelines from HubSpot
+    
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/pipelines
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [ValidateSet("Deal")]
@@ -160,9 +167,17 @@ function Get-HubSpotPipeline {
     $Req = InvokeHubSpotApi -Endpoint $Endpoint
     Return $Req.results  
 }
-
-#https://developers.hubspot.com/docs/guides/api/crm/pipelines#delete-a-pipeline
 function Remove-HubSpotPipeline {
+    <#
+    .SYNOPSIS
+        Deletes a pipeline from HubSpot
+
+    .EXAMPLE
+        Remove-HubSpotPipeline -Type Deal -Id 12345
+    
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/pipelines#delete-a-pipeline
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [ValidateSet("Deal")]
@@ -187,9 +202,34 @@ function Remove-HubSpotPipeline {
     $Req = InvokeHubSpotApi -Endpoint $Endpoint -Method Delete
     Return $Req
 }
-
-#https://developers.hubspot.com/docs/guides/api/crm/objects/deals
 function Get-HubSpotDeal {
+    <#
+    .SYNOPSIS
+        Gets deals from HubSpot.
+    .DESCRIPTION
+        Gets either all deals, or a specific deal by Id from HubSpot.
+        Returns some basic properties by default, but you can include a list of properties to include. For a list of properties, see 'Get-HubSpotProperty -Object Deals'
+    .EXAMPLE
+        #Specific properties to retrieve
+        $PropertiesArray =@(
+                "hs_deal_stage_probability",
+                "hs_forecast_probability",
+                "hs_manual_forecast_category",
+                "dealtype",
+                "dealstage",
+                "amount",
+                "createDate",
+                "closeDate",
+                "hs_closed_won_date"
+        )
+        $Properties = $PropertiesArray -join ','    
+        Get-HubSpotDeal -Id "23008365181" -Properties $Properties
+
+        #Get all deals
+        Get-HubSpotDeal
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/objects/deals
+    #>
     param(
         [Parameter(Mandatory = $false)]
         [string]$Id,
@@ -210,9 +250,25 @@ function Get-HubSpotDeal {
     Return $Req
     
 }
-
-#https://developers.hubspot.com/docs/guides/api/crm/objects/deals#create-deals
 function New-HubSpotDeal {
+    <#
+    .SYNOPSIS
+        Creates a new deal in HubSpot.
+    .DESCRIPTION
+        Creates a new deal in HubSpot with given properties which are passed as a JSON object.
+    .EXAMPLE
+        #Create new deal
+        $Properties =@{
+            properties = @{
+            "pipeline" = $PipelineId
+            "dealstage" = $StageId
+            "dealname" = "Test Dealio"
+            }
+        } | ConvertTo-Json
+        New-HubSpotDeal -Properties $PropertiesObject
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/objects/deals#create-deals
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [object]$PropertiesObject
@@ -223,9 +279,19 @@ function New-HubSpotDeal {
     $Req = InvokeHubSpotApi -Endpoint $Endpoint -Body $PropertiesObject -Method Post
     Return $Req
 }
-
-#https://developers.hubspot.com/docs/guides/api/crm/using-object-apis#retrieve-records
 function Get-HubSpotProperty {
+    <#
+    .SYNOPSIS
+        Gets a list of properties for a given object type.
+    .DESCRIPTION
+        Gets a list of properties for a given object type.
+        This command is useful for getting a list of properties and their internal names for use in other commands such as New-HubSpotDeal.
+    .EXAMPLE
+        #Get all properties for Deals
+        Get-HubSpotProperty -Object "Deals"
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/using-object-apis#retrieve-records
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$Object,
@@ -250,9 +316,23 @@ function Get-HubSpotProperty {
     $Req = InvokeHubSpotApi -Endpoint $Endpoint
     Return $Req.results
 }
-
-#https://developers.hubspot.com/docs/guides/api/crm/objects/companies
 function Get-HubSpotCompany {
+    <#
+    .SYNOPSIS
+        Gets companies from HubSpot.
+    .DESCRIPTION
+        Gets either all companies or a specific company by Id from HubSpot.
+
+        Returns some basic properties by default, but you can include a list of properties to include.
+    .EXAMPLE
+        #Get all companies    
+        Get-HubSpotCompany -All
+
+        #Get a specific company
+        Get-HubSpotCompany -Id "23528570115"
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/objects/companies
+    #>
     param(
         [Parameter(Mandatory = $false)]
         [string]$Id,
@@ -273,10 +353,58 @@ function Get-HubSpotCompany {
 
     Return $Req
 }
+function Set-HubSpotCompany{
+    <#
+    .SYNOPSIS
+        Updates a company in HubSpot.
 
-#Note: this cmdlet uses the v3 API and as such does not show secondary company associations (e.g. if there are two companies associated with one deal this cmdlet only returns the primary association)
-#https://developers.hubspot.com/beta-docs/reference/api/crm/associations/association-details/v3
+    .DESCRIPTION
+        Updates a company's properties with new values. Input for PropertiesObject should be a JSON formatted object (hashtable) with only the properties/values you want to update.
+
+    .EXAMPLE
+        $JsonFormattedObject = @{
+            Name = $NewName
+            Phone = $NewPhone
+        } | ConvertTo-Json
+        Set-HubSpotCompany -Id 12345678 -PropertiesObject $JsonFormattedObject
+
+    .LINK
+        https://developers.hubspot.com/docs/reference/api/crm/objects/companies#patch-%2Fcrm%2Fv3%2Fobjects%2Fcompanies%2F%7Bcompanyid%7D
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Id,
+        [Parameter(Mandatory = $true)]
+        [object]$PropertiesObject
+    )
+
+    $Endpoint = "/crm/v3/objects/companies/$Id"
+
+    $Req = InvokeHubSpotApi -Endpoint $Endpoint -Body $PropertiesObject -Method Patch
+
+    #Successful update will return the company (same as Get-HubSpotCompany)
+    if(-not $Req.id){
+        Write-Error "Failed to update company"
+    }
+}
 function Get-HubSpotAssociation {
+    <#
+    .SYNOPSIS
+        Gets associations between an object and another type of object in HubSpot, e.g. all contacts associated with a company.
+    .DESCRIPTION
+        Gets associations between an object and another type of object in HubSpot, e.g. all contacts associated with a company.
+        The Types switch will list the types of associations between two object types.
+
+        #Note: this cmdlet uses the v3 API and as such does not show secondary company associations (e.g. if there are two companies associated with one deal this cmdlet only returns the primary association)
+    .EXAMPLE
+        #Get all association types between companies and contacts
+        $CompanyAssociations = Get-HubSpotAssociation -BaseObject "Companies" -RelatedObject "Contacts" -Types
+
+        #Get all associations between a company and contacts
+        Get-HubSpotAssociation -BaseObject "Companies" -RelatedObject "Contacts" -BaseObjectId 12345678
+    .LINK
+        https://developers.hubspot.com/beta-docs/reference/api/crm/associations/association-details/v3
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$RelatedObject,
@@ -312,9 +440,28 @@ function Get-HubSpotAssociation {
 
     Return $Req.results
 }
-
-#https://developers.hubspot.com/docs/guides/api/crm/associations/associations-v3#create-associations
 function New-HubSpotAssociation {
+    <#
+    .SYNOPSIS
+        Creates a new association of a given type between two objects.
+    .DESCRIPTION
+        Creates a new association of a given type between two objects.
+
+        For a list of types, use Get-HubSpotAssociation with the -Types switch, e.g. 
+            Get-HubSpotAssociation -BaseObject "Companies" -RelatedObject "Contacts" -Types
+    .EXAMPLE
+        #Create new association
+        $Splat = @{
+            BaseObject = "Deal"
+            BaseObjectId = 12345678
+            RelatedObject = "Company"
+            RelatedObjectId = 019283784
+            Type = "deal_to_company"
+        }
+        New-HubSpotAssociation @Splat
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/associations/associations-v3#create-associations
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$BaseObject,
@@ -351,9 +498,28 @@ function New-HubSpotAssociation {
     
     Return $Req
 }
-
-#https://developers.hubspot.com/docs/guides/api/crm/associations/associations-v3#remove-associations
 function Remove-HubSpotAssociation {
+    <#
+    .SYNOPSIS
+        Deletes an association between two objects in HubSpot.
+    .DESCRIPTION
+        Deletes an association between two objects in HubSpot.
+
+        For a list of types, use Get-HubSpotAssociation with the -Types switch, e.g. 
+            Get-HubSpotAssociation -BaseObject "Companies" -RelatedObject "Contacts" -Types
+    .EXAMPLE
+        #Remove an association
+        $Splat = @{
+            BaseObject = "Deal"
+            BaseObjectId = $TestDeal.id
+            RelatedObject = "Company"
+            RelatedObjectId = $TestCompany.id
+            Type = "deal_to_company"
+        }
+        Remove-HubSpotAssociation @Splat
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/associations/associations-v3#remove-associations
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$BaseObject,
@@ -390,9 +556,25 @@ function Remove-HubSpotAssociation {
     
     Return $Req
 }
-
-#https://developers.hubspot.com/docs/reference/api/crm/objects/contacts#get-%2Fcrm%2Fv3%2Fobjects%2Fcontacts%2F%7Bcontactid%7D
 function Get-HubSpotContact {
+    <#
+    .SYNOPSIS
+        Gets contacts from HubSpot.
+    .DESCRIPTION
+        Gets either all contacts, or a specific contact by Id from HubSpot.
+
+        Returns some basic properties by default, but you can include a list of properties to include.
+
+        Using the AssociatedObjectType parameter, you can also return objects of a given type that are associated with a specific contact.
+    .EXAMPLE
+        #Get all contacts
+        Get-HubSpotContact
+
+        #Get specific contact
+        Get-HubSpotContact -Id 12345678
+    .LINK
+        https://developers.hubspot.com/docs/reference/api/crm/objects/contacts#get-%2Fcrm%2Fv3%2Fobjects%2Fcontacts%2F%7Bcontactid%7D
+    #>
     param(
         [Parameter(Mandatory = $false)]
         [string]$Id,
@@ -424,9 +606,17 @@ function Get-HubSpotContact {
 
     Return $Req
 }
-
-#https://developers.hubspot.com/docs/guides/api/crm/engagements/notes#retrieve-notes
 function Get-HubSpotNote {
+    <#
+    .SYNOPSIS
+        Gets notes from HubSpot.
+    .DESCRIPTION
+        Gets notes associated with a given contact/company/deal, or gets all notes in HubSpot.
+    .EXAMPLE
+        Get-HubSpotNote -AssociatedObjectType deals -Id 12345678
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/engagements/notes#retrieve-notes
+    #>
     param(
         [Parameter(Mandatory = $false,ParameterSetName = "SingleNote")]
         [string]$Id,
@@ -463,9 +653,17 @@ function Get-HubSpotNote {
         Return $Req
     }
 }
-
-#https://developers.hubspot.com/docs/guides/api/crm/engagements/notes#create-a-note
 function New-HubSpotNote {
+    <#
+    .SYNOPSIS
+        Creates a new note in HubSpot.
+    .DESCRIPTION
+        Creates a new note that is associated with a given object.
+    .EXAMPLE
+        New-HubSpotNote -AssociatedObjectId 12345678 -AssociatedObjectType Deal -NoteBody "Hello world"
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/engagements/notes#create-a-note
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$AssociatedObjectId,
@@ -509,4 +707,87 @@ function New-HubSpotNote {
 
     return $Req
 
+}
+function Get-HubSpotUser{
+    <#
+    .SYNOPSIS
+        Gets user accounts.
+    .DESCRIPTION
+        Gets user accounts, or a specific user by ID.
+        Returns some basic properties by default, but you can include a list of properties to include. For a list of properties, see 'Get-HubSpotProperty -Object Users'
+    .EXAMPLE
+        #Specific properties to retrieve
+        $PropertiesArray =@(
+                "hs_deal_stage_probability",
+                "hs_forecast_probability",
+                "hs_manual_forecast_category",
+                "dealtype",
+                "dealstage",
+                "amount",
+                "createDate",
+                "closeDate",
+                "hs_closed_won_date"
+        )
+        $Properties = $PropertiesArray -join ','    
+        Get-HubSpotDeal -Id "23008365181" -Properties $Properties
+
+        #Get all deals
+        Get-HubSpotDeal
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/settings/users/user-details
+    #>
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Id,
+        [Parameter(Mandatory = $false)]
+        [string]$Properties = $null
+    )
+
+    if($Id){
+        $Endpoint = "/crm/v3/objects/users/$Id"
+    }
+    else{
+        $Endpoint = "/crm/v3/objects/users/"
+    }
+    
+    if($Properties){
+        $Endpoint += "?properties=$Properties"
+    }
+
+    $Req = InvokeHubSpotApi -Endpoint $Endpoint
+
+    Return $Req
+}
+function Get-HubSpotOwner{
+    <#
+    .SYNOPSIS
+        Gets owners from HubSpot.
+    .EXAMPLE
+        #Get all owners
+        Get-HubSpotOwner
+
+        #Get owner by Id
+        Get-HubSpotOwner -Id 12345678
+    .LINK
+        https://developers.hubspot.com/docs/reference/api/crm/owners
+    #>
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Id
+    )
+
+    if($Id){
+        $Endpoint = "/crm/v3/owners/$Id"
+
+        $Req = InvokeHubSpotApi -Endpoint $Endpoint
+
+        Return $Req
+    }
+    else{
+        $Endpoint = "/crm/v3/owners/"
+
+        $Req = InvokeHubSpotApi -Endpoint $Endpoint
+
+        Return $Req.results
+    }
 }
