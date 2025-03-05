@@ -823,3 +823,45 @@ function Resolve-HubSpotOwner{
     
     Return $User
 }
+function Search-HubSpot{
+    <#
+    .SYNOPSIS
+        Executes a search query.
+    .DESCRIPTION
+        Executes a search query against a given object type, e.g. searching deals for that include "test" in the name.
+    .EXAMPLE
+        #Bloody hell the nesting
+        $Query = @{
+            filterGroups = @(
+                @{
+                    filters = @(
+                        @{
+                            propertyName = "firstname"
+                            operator = "EQ"
+                            value = "Alice"
+                        }
+                    )
+                }
+            )
+        } | ConvertTo-Json -Depth 20
+        $Matches = Search-HubSpot -ObjectType contacts -Query $Query
+    .NOTES
+        The search endpoints are limited to 10,000 total results for any given query. Attempting to page beyond 10,000 will result in a 400 error.
+        See links for other caveats and limits.
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/search
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("deals","contacts","companies")]
+        [string]$ObjectType,
+        [Parameter(Mandatory = $true)]
+        [object]$Query
+    )
+
+    $Endpoint = "/crm/v3/objects/$ObjectType/search"
+    
+    $Req = InvokeHubSpotApi -Endpoint $Endpoint -Method Post -Body $Query
+
+    Return $Req.results
+}
