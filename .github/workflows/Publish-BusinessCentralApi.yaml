@@ -1,4 +1,4 @@
-name: Publish HubSpotApi
+name: Publish BusinessCentralApi
 
 on:
     push:
