@@ -791,3 +791,35 @@ function Get-HubSpotOwner{
         Return $Req.results
     }
 }
+function Resolve-HubSpotOwner{
+    <#
+    .SYNOPSIS
+        Resolves owner ID to a user object.
+    .DESCRIPTION
+        Resolves the user for a given owner Id and returns a custom user object.
+    .EXAMPLE
+        Resolve-HubSpotOwner -OwnerId 12345678
+    .LINK
+        https://developers.hubspot.com/docs/guides/api/crm/owners
+        https://developers.hubspot.com/docs/guides/api/settings/users/user-details#retrieve-users
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OwnerId
+    )
+
+    $Owner = Get-HubSpotOwner -Id $OwnerId
+
+    $Properties = @(
+        "hs_deactivated",
+        "hs_email",
+        "hs_family_name",
+        "hs_given_name",
+        "hs_internal_user_id",
+        "hs_object_id"
+    ) -join ','
+    
+    $User = Get-HubSpotUser -Properties $Properties | select -ExpandProperty properties | Where-Object{$_.hs_internal_user_id -eq $Owner.userId}
+    
+    Return $User
+}

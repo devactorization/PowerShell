@@ -1,16 +1,22 @@
 <#
 Written by Don Morgan
-This module exposes the Business Central API via native PowerShell commands
+This module exposes the Business Central API via native PowerShell
 #>
 
 ########## Begin Internal functions ##########
 function GetOauthToken{
-    #Get access token - note that the token has a 1h lifetime
-    #Docs on getting an auth token using an app secret: https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow#first-case-access-token-request-with-a-shared-secret
-    #Business Central API: https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/automation-apis-using-s2s-authentication
-    #More API docs: https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/
-    #Note: if this ever needs to be set up again, there are steps inside the Business Central cient that need to be taken to add the user
-    #Note: the body of the POST request is NOT json
+    <#
+    .SYNOPSIS
+        Gets an Oauth token using an app registration (client Id, tenant Id, client secret).
+    .DESCRIPTION
+        Business Central requires the use of Oauth and deprecated basic auth (i.e. API keys/tokens).
+    .NOTES
+        The access token has a 1h lifetime by default per Entra Id settings.
+    .LINK
+        Docs on getting an auth token using an app secret: https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow#first-case-access-token-request-with-a-shared-secret
+        Business Central API: https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/automation-apis-using-s2s-authentication
+        More API docs: https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/    
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$ClientSecret,
@@ -40,6 +46,10 @@ function GetOauthToken{
 }
 
 function InvokeBusinessCentralApi{
+    <#
+    .SYNOPSIS
+        This is the main internal function for this module. It handles making the API calls to a given endpoint, authentication (once connected), etc.
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [ValidatePattern('/.*')] #require the endpoint start with '/'
@@ -105,9 +115,8 @@ function InvokeBusinessCentralApi{
     
     Return $Request
 }
-########## End Internal Functions ##########
 
-#Debugging cmdlet
+#Debugging command
 function Set-BusinessCentralApiVerbosity{
     param(
         [bool]$Debug
@@ -122,10 +131,21 @@ function Set-BusinessCentralApiVerbosity{
         Write-Host -ForegroundColor Yellow "Business Central debug mode disabled"
     }
 }
-
+########## End Internal Functions ##########
 
 #Tenant level/general cmdlets
 function Connect-BusinessCentralApi{
+    <#
+    .SYNOPSIS
+        Connects to Business Central via app registration.
+    .NOTES
+        Once connected, you will need to set an environment and company context via "Set-BusinessCentralEnvironmentContext" and "Set-BusinessCentralCompanyContext" before using other cmdlets.
+    .EXAMPLE
+        $clientId = "e32b5db8-a84e-4af2-8bb8-e434382a962d"
+        $secret = "blahblahblahsomesecretblahblah~"
+        $tenantId = "dd80a757-da1b-442a-a25f-199d5fee6a9e"
+        Connect-BusinessCentralApi -ClientSecret $secret -ClientId $clientId -TenantId $tenantId
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$ClientSecret,
@@ -146,8 +166,17 @@ function Connect-BusinessCentralApi{
     Write-Host -ForegroundColor Green "Connected - API token good for one hour."
 }
 function Get-BusinessCentralEnvironment{
-    #This cmdlet doesn't use InvokeBusinessCentralApi since it uses the admin API instead of the normal/application API
-    #Get a list of environments using the admin center API
+    <#
+    .SYNOPSIS
+        Gets Business Central environments.
+    .DESCRIPTION
+        Gets environments, e.g. production and sandbox environments.
+        Also can be used to get the currently set environment context.
+    .NOTES
+        This cmdlet doesn't use InvokeBusinessCentralApi since it uses the admin API instead of the normal/application API.
+    .EXAMPLE
+        Get-BusinessCentralEnvironmentContext
+    #>
     param(
         [switch]$Current
     )
@@ -156,7 +185,7 @@ function Get-BusinessCentralEnvironment{
     if($Current){
         return $env:BusinessCentralApiEnvironmentContext
     }
-    #list all environments
+    #List all environments
     else{
         $Token = $env:BusinessCentralApiToken
         $headers = @{
@@ -173,6 +202,17 @@ function Get-BusinessCentralEnvironment{
 
 }
 function Set-BusinessCentralEnvironmentContext{
+    <#
+    .SYNOPSIS
+        Sets the environment that further cmdlets should be executed in.
+    .DESCRIPTION
+        The URI for a given API endpoint includes the environment (e.g. production or sandbox), this cmdlet sets an environment variable that is used by InvokeBusinessCentralApi in subsequent cmdlets so you don't need to specify the environment with each API call.
+    .EXAMPLE
+        Set-BusinessCentralEnvironmentContext -EnvironmentName "Contoso-Production"
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/tenant-admin-center-environments
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/tenant-environment-topology
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$EnvironmentName
@@ -182,6 +222,18 @@ function Set-BusinessCentralEnvironmentContext{
     Write-Host -ForegroundColor Green "Set Business Central API environment context to $EnvironmentName"
 }
 function Set-BusinessCentralCompanyContext{
+    <#
+    .SYNOPSIS
+        Sets the Business Central company that further cmdlets should be executed in.
+    .DESCRIPTION
+        The URI for a given API endpoint includes the company, this cmdlet sets an environment variable that is used by InvokeBusinessCentralApi in subsequent cmdlets so you don't need to specify the company with each API call.
+    .EXAMPLE
+        $Company = Get-BusinessCentralCompany | Where-Object{$_.name -eq "My Company"}
+        Set-BusinessCentralCompanyContext -CompanyId $Company.id
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/about-new-company
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/tenant-environment-topology
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$CompanyId
@@ -192,18 +244,33 @@ function Set-BusinessCentralCompanyContext{
 }
 
 #Object level cmdlets
-
-#https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/resources/dynamics_company
 function Get-BusinessCentralCompany{
+    <#
+    .SYNOPSIS
+        Gets companies in a Business Central environment
+    .EXAMPLE
+        Get-BusinessCentralCompany
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/resources/dynamics_company
+    #>
     $CompanyEndpoint = "/companies"
 
     $Companies = InvokeBusinessCentralApi -Endpoint $CompanyEndpoint -NoCompanyContext
 
     Return $Companies.value
 }
-
-#https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_customer_get
 function Get-BusinessCentralCustomer{
+    <#
+    .SYNOPSIS
+        Gets customer records, or a specific customer by Id.
+    .EXAMPLE
+        #Get specific customer
+        Get-BusinessCentralCustomer -Id 12345678
+        #Get all customers
+        Get-BusinessCentralCustomer
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_customer_get
+    #>
     param(
         [Parameter(Mandatory = $false)]
         [string]$Id
@@ -223,9 +290,28 @@ function Get-BusinessCentralCustomer{
         Return $Customers.value
     }   
 }
-
-#https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_customer_create
 function New-BusinessCentralCustomer{
+    <#
+    .SYNOPSIS
+        Creates a new Business Central customer record with the given properties.
+    .NOTES
+        Returns the customer object that was created.
+    .EXAMPLE
+        $NewCustomerSplat = @{
+            Display = "Fabrikam LTd"
+            Number = "12345678""
+            Type = "Company"
+            AddressLine1 = "4321 Somewhere Lane"
+            AddressLine2 = "Suite 1"
+            City = "Schenectady"
+            State = "New York"
+            Country = "US"
+            PostalCode = "12345"
+        }
+        $NewCustomer = New-BusinessCentralCustomer @NewCustomerSplat
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_customer_create
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$Number,
@@ -265,9 +351,17 @@ function New-BusinessCentralCustomer{
 
     Return $Request.content | ConvertFrom-Json
 }
-
-#https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_customer_delete
 function Remove-BusinessCentralCustomer{
+    <#
+    .SYNOPSIS
+        Deletes a Business Central customer record.
+    .NOTES
+        Does not delete the associated company-type contact record.
+    .EXAMPLE
+        Remove-BusinessCentralCustomer -Id 12345678
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_customer_delete
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$Id
@@ -281,9 +375,17 @@ function Remove-BusinessCentralCustomer{
         Write-Error "Failed to delete customer $Request"
     }
 }
-
-#https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_customer_update
 function Set-BusinessCentralCustomer{
+    <#
+    .SYNOPSIS
+        Updates a Business Central customer record.
+    .DESCRIPTION
+        Updates a Business Central customer record. Supports updating single or multiple properties at once.
+    .EXAMPLE
+        Set-BusinessCentralCustomer -Id 12345678 -DisplayName "New Name"
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_customer_update
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$Id,
@@ -324,9 +426,19 @@ function Set-BusinessCentralCustomer{
         Write-Error "Failed to update customer $Request"
     }
 }
-
-#https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_contact_get
 function Get-BusinessCentralContact{
+    <#
+    .SYNOPSIS
+        Gets Business Central contacts.
+    .EXAMPLE
+        #Get all contacts    
+        Get-BusinessCentralContact
+
+        #Get specific contact by Id
+        Get-BusinessCentralContact -Id 12345678
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_contact_get
+    #>
     param(
         [Parameter(Mandatory = $false)]
         [string]$Id
@@ -349,15 +461,40 @@ function Get-BusinessCentralContact{
         Return $Request.value
     }
 }
-
-#https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_contact_create
 function New-BusinessCentralContact{
+    <#
+    .SYNOPSIS
+        Creates a new Business Central contact with the given properties.
+    .EXAMPLE
+        $NewContactSplat = @{
+        DisplayName = "Jane Doe"
+        Number = "12345678"
+        AddressLine1 = "4321 Somewhere Lane"
+        AddressLine2 = "Suite 1"
+        City = "NYC"
+        State = "New York"
+        Country = "US"
+        PostalCode = "12345"
+        MobilePhoneNumber = "800-555-1212"
+        Type = "Person"
+        CompanyNumber = "87654321"
+    }
+    $NewContact = New-BusinessCentralContact @NewContactSplat
+    .NOTES
+        To create a contact associated with a customer (company) using the CompanyNumber property, you must resolve the customer contact number using Get-BusinessCentralContactRelation
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_contact_create
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$DisplayName,
         [Parameter(Mandatory = $true)]
         [string]$Number,
         #Optional fields below here
+        [string]$JobTitle,
+        [string]$CompanyNumber,
+        [ValidateSet("Company","Person")]
+        [string]$Type,
         [string]$AddressLine1,
         [string]$AddressLine2,
         [string]$City,
@@ -367,7 +504,8 @@ function New-BusinessCentralContact{
         [string]$Country,
         [string]$PostalCode,
         [string]$PhoneNumber,
-        [string]$MobilePhoneNumber
+        [string]$MobilePhoneNumber,
+        [string]$Email
     )
 
     #Dynamically create a hashtable with whatever attributes were specified. Have to do this since you can't have a null key value in hashtables and you may not use all params when creating a new object
@@ -386,9 +524,17 @@ function New-BusinessCentralContact{
 
     Return $Request.content | ConvertFrom-Json
 }
-
-#https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_contact_delete
 function Remove-BusinessCentralContact{
+    <#
+    .SYNOPSIS
+        Deletes a contact from Business Central.
+    .NOTES
+        If you delete the company contact (with type: company) for a customer, it will also delete all related person contacts, but not the customer record.
+    .EXAMPLE
+        Remove-BusinessCentralContact -Id 12345678
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_contact_delete
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$Id
@@ -402,14 +548,26 @@ function Remove-BusinessCentralContact{
         Write-Error "Failed to delete contact $Request"
     }
 }
-
-#https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_contact_update
 function Set-BusinessCentralContact{
+    <#
+    .SYNOPSIS
+        Updates a contact in Business Central.
+    .EXAMPLE
+        Set-BusinessCentralContact -Id 12345678 -CompanyNumber 1029384756
+        Set-BusinessCentralContact -Id 12345678 -CompanyNumber $ContactRelations.contactNumber
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_contact_update
+        https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/enum/microsoft.crm.businessrelation.contact-business-relation-link-to-table#values
+    #>
     param(
         [Parameter(Mandatory = $true)]
         [string]$Id,
         #Optional fields below here
         [string]$DisplayName,
+        [string]$JobTitle,
+        [ValidateSet("Company","Person")]
+        [string]$Type,
+        [string]$CompanyNumber,
         [string]$Number,
         [string]$AddressLine1,
         [string]$AddressLine2,
@@ -420,7 +578,8 @@ function Set-BusinessCentralContact{
         [string]$Country,
         [string]$PostalCode,
         [string]$PhoneNumber,
-        [string]$MobilePhoneNumber
+        [string]$MobilePhoneNumber,
+        [string]$Email
     )
 
     #Dynamically create a hashtable with whatever attributes were specified. Have to do this since you can't have a null key value in hashtables and you may not use all params when creating a new object
@@ -440,4 +599,36 @@ function Set-BusinessCentralContact{
     if($Request.StatusCode -ne '200'){
         Write-Error "Failed to update contact $Request"
     }
+}
+
+function Get-BusinessCentralContactRelation{
+    <#
+    .SYNOPSIS
+        Gets contacts related to a given vendor/customer.
+    .EXAMPLE
+        Get-BusinessCentralContactRelation -CustomerId 12345678
+    .NOTES
+        When relating person contacts with a company contact, you can use "Get-BusinessCentralContactRelation -CustomerId 12345678 | where-object{$_.contacttype -eq "company"}"
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/resources/dynamics_contactinformation
+    #>
+    param(
+        [parameter(Mandatory = $true,ParameterSetName = "VendorRelation")]
+        [string]$VendorId,
+        [parameter(Mandatory = $true,ParameterSetName = "CustomerRelation")]
+        [string]$CustomerId
+    )
+
+    switch($PsCmdlet.ParameterSetName){
+        "VendorRelation" {
+            $Endpoint = "/vendors($VendorId)/contactsInformation"
+        }
+        "CustomerRelation" {
+            $Endpoint = "/customers($CustomerId)/contactsInformation"
+        }
+    }
+
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint
+
+    Return $Request.value
 }
