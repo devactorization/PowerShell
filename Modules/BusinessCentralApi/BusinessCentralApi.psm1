@@ -314,13 +314,12 @@ function New-BusinessCentralCustomer{
     #>
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Number,
-        [Parameter(Mandatory = $true)]
         [string]$DisplayName,
         [Parameter(Mandatory = $true)]
         [ValidateSet("Company","Person")]
         [string]$Type,
         #Optional fields below here
+        [string]$Number,
         [string]$AddressLine1,
         [string]$AddressLine2,
         [string]$City,
@@ -488,9 +487,8 @@ function New-BusinessCentralContact{
     param(
         [Parameter(Mandatory = $true)]
         [string]$DisplayName,
-        [Parameter(Mandatory = $true)]
-        [string]$Number,
         #Optional fields below here
+        [string]$Number,
         [string]$JobTitle,
         [string]$CompanyNumber,
         [ValidateSet("Company","Person")]
