@@ -4,7 +4,7 @@ function TrimHashTable{
         Removes empty string or null value keys from a hashtable
     #>
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)]
         [object]$Hashtable
     )
 
