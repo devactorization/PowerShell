@@ -265,7 +265,7 @@ function New-HubSpotDeal {
             "dealname" = "Test Dealio"
             }
         } | ConvertTo-Json
-        New-HubSpotDeal -Properties $PropertiesObject
+        New-HubSpotDeal -PropertiesObject $PropertiesObject
     .LINK
         https://developers.hubspot.com/docs/guides/api/crm/objects/deals#create-deals
     #>
@@ -277,6 +277,37 @@ function New-HubSpotDeal {
     $Endpoint = "/crm/v3/objects/deals"
 
     $Req = InvokeHubSpotApi -Endpoint $Endpoint -Body $PropertiesObject -Method Post
+    Return $Req
+}
+function Set-HubSpotDeal {
+    <#
+    .SYNOPSIS
+        Updates properties on a deal in HubSpot.
+    .DESCRIPTION
+        Updates a deal in HubSpot with given properties which are passed as a JSON object.
+    .EXAMPLE
+        #Update a deal
+        $Properties =@{
+            properties = @{
+            "pipeline" = $PipelineId
+            "dealstage" = $StageId
+            "dealname" = "Test Dealio"
+            }
+        } | ConvertTo-Json
+        Set-HubSpotDeal -PropertiesObject $PropertiesObject -Id 12345678
+    .LINK
+        https://developers.hubspot.com/docs/reference/api/crm/objects/deals#patch-%2Fcrm%2Fv3%2Fobjects%2Fdeals%2F%7Bdealid%7D
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Id,
+        [Parameter(Mandatory = $true)]
+        [object]$PropertiesObject
+    )
+
+    $Endpoint = "/crm/v3/objects/deals/$Id"
+
+    $Req = InvokeHubSpotApi -Endpoint $Endpoint -Body $PropertiesObject -Method Patch
     Return $Req
 }
 function Get-HubSpotProperty {
@@ -353,7 +384,7 @@ function Get-HubSpotCompany {
 
     Return $Req
 }
-function Set-HubSpotCompany{
+function Set-HubSpotCompany {
     <#
     .SYNOPSIS
         Updates a company in HubSpot.
@@ -606,6 +637,38 @@ function Get-HubSpotContact {
 
     Return $Req
 }
+function Set-HubSpotContact{
+    <#
+    .SYNOPSIS
+        Sets/updates properties on a contact.
+    .DESCRIPTION
+        Updates properties for a given contact Id. Properties are passed as an object since they can be customized in HubSpot.
+        You can get a list of properties using Get-HubSpotProperty -Object contact
+    .EXAMPLE
+        $NewProps = @{
+            properties = @{
+                cell_phone = "800-555-1212"
+            }
+        } | ConvertTo-Json
+
+        Set-HubSpotContact -id 12345678 -PropertiesObject $NewProps
+    .LINK
+        https://developers.hubspot.com/docs/reference/api/crm/objects/contacts#patch-%2Fcrm%2Fv3%2Fobjects%2Fcontacts%2F%7Bcontactid%7D
+    #>
+    [alias("Update-HubSpotContact")]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Id,
+        [Parameter(Mandatory = $true)]
+        [object]$PropertiesObject
+    )
+
+    $Endpoint = "/crm/v3/objects/contacts/$Id"
+
+    $Req = InvokeHubSpotApi -Method Patch -Body $PropertiesObject -Endpoint $Endpoint
+
+    Return $Req.id
+}
 function Get-HubSpotNote {
     <#
     .SYNOPSIS
@@ -708,7 +771,7 @@ function New-HubSpotNote {
     return $Req
 
 }
-function Get-HubSpotUser{
+function Get-HubSpotUser {
     <#
     .SYNOPSIS
         Gets user accounts.
@@ -758,7 +821,7 @@ function Get-HubSpotUser{
 
     Return $Req
 }
-function Get-HubSpotOwner{
+function Get-HubSpotOwner {
     <#
     .SYNOPSIS
         Gets owners from HubSpot.
@@ -791,7 +854,7 @@ function Get-HubSpotOwner{
         Return $Req.results
     }
 }
-function Resolve-HubSpotOwner{
+function Resolve-HubSpotOwner {
     <#
     .SYNOPSIS
         Resolves owner ID to a user object.
@@ -823,7 +886,7 @@ function Resolve-HubSpotOwner{
     
     Return $User
 }
-function Search-HubSpot{
+function Search-HubSpot {
     <#
     .SYNOPSIS
         Executes a search query.

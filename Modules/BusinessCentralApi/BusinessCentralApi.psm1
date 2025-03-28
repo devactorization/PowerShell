@@ -253,9 +253,9 @@ function Get-BusinessCentralCompany{
     .LINK
         https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/resources/dynamics_company
     #>
-    $CompanyEndpoint = "/companies"
+    $Endpoint = "/companies"
 
-    $Companies = InvokeBusinessCentralApi -Endpoint $CompanyEndpoint -NoCompanyContext
+    $Companies = InvokeBusinessCentralApi -Endpoint $Endpoint -NoCompanyContext
 
     Return $Companies.value
 }
@@ -276,18 +276,18 @@ function Get-BusinessCentralCustomer{
         [string]$Id
     )
 
-    $CustomerEndpoint = "/customers"
+    $Endpoint = "/customers"
     if($Id){
-        $CustomerEndpoint += "($Id)"
+        $Endpoint += "($Id)"
     }
 
-    $Customers = InvokeBusinessCentralApi -Endpoint $CustomerEndpoint
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint
 
     if($Id){
-        Return $Customers
+        Return $Request
     }
     else{
-        Return $Customers.value
+        Return $Request.value
     }   
 }
 function New-BusinessCentralCustomer{
@@ -344,9 +344,9 @@ function New-BusinessCentralCustomer{
 
     $Body = $Attributes | ConvertTo-Json
 
-    $CustomerEndpoint = "/customers"
+    $Endpoint = "/customers"
 
-    $Request = InvokeBusinessCentralApi -Endpoint $CustomerEndpoint -Method Post -Body $Body
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Method Post -Body $Body
 
     Return $Request.content | ConvertFrom-Json
 }
@@ -366,9 +366,9 @@ function Remove-BusinessCentralCustomer{
         [string]$Id
     )
 
-    $CustomerEndpoint = "/customers($Id)"
+    $Endpoint = "/customers($Id)"
 
-    $Request = InvokeBusinessCentralApi -Endpoint $CustomerEndpoint -Method Delete
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Method Delete
 
     if($Request.StatusCode -ne '204'){
         Write-Error "Failed to delete customer $Request"
@@ -417,9 +417,9 @@ function Set-BusinessCentralCustomer{
 
     $Body = $Attributes | ConvertTo-Json
 
-    $CustomerEndpoint = "/customers($Id)"
+    $Endpoint = "/customers($Id)"
 
-    $Request = InvokeBusinessCentralApi -Endpoint $CustomerEndpoint -Method Patch -Body $Body
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Method Patch -Body $Body
 
     if($Request.StatusCode -ne '200'){
         Write-Error "Failed to update customer $Request"
@@ -444,14 +444,14 @@ function Get-BusinessCentralContact{
     )
 
     If($Id){
-        $ContactEndpoint = "/contacts($Id)"
+        $Endpoint = "/contacts($Id)"
         
     }
     else{
-        $ContactEndpoint = "/contacts"
+        $Endpoint = "/contacts"
     }
 
-    $Request = InvokeBusinessCentralApi -Endpoint $ContactEndpoint
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint
 
     if($Id){
         Return $Request    
@@ -516,9 +516,9 @@ function New-BusinessCentralContact{
 
     $Body = $Attributes | ConvertTo-Json
 
-    $CustomerEndpoint = "/contacts"
+    $Endpoint = "/contacts"
 
-    $Request = InvokeBusinessCentralApi -Endpoint $CustomerEndpoint -Method Post -Body $Body
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Method Post -Body $Body
 
     Return $Request.content | ConvertFrom-Json
 }
@@ -538,9 +538,9 @@ function Remove-BusinessCentralContact{
         [string]$Id
     )
 
-    $ContactEndpoint = "/contacts($Id)"
+    $Endpoint = "/contacts($Id)"
 
-    $Request = InvokeBusinessCentralApi -Endpoint $ContactEndpoint -Method Delete
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Method Delete
 
     if($Request.StatusCode -ne '204'){
         Write-Error "Failed to delete contact $Request"
@@ -590,15 +590,14 @@ function Set-BusinessCentralContact{
 
     $Body = $Attributes | ConvertTo-Json
 
-    $ContactsEndpoint = "/contacts($Id)"
+    $Endpoint = "/contacts($Id)"
 
-    $Request = InvokeBusinessCentralApi -Endpoint $ContactsEndpoint -Method Patch -Body $Body
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Method Patch -Body $Body
 
     if($Request.StatusCode -ne '200'){
         Write-Error "Failed to update contact $Request"
     }
 }
-
 function Get-BusinessCentralContactRelation{
     <#
     .SYNOPSIS
@@ -629,4 +628,271 @@ function Get-BusinessCentralContactRelation{
     $Request = InvokeBusinessCentralApi -Endpoint $Endpoint
 
     Return $Request.value
+}
+function Get-BusinessCentralSalesOrder{
+    <#
+    .SYNOPSIS
+        Gets Business Central sales orders.
+    .EXAMPLE
+        #Get all sales orders    
+        Get-BusinessCentralSalesOrder
+
+        #Get specific sales order by Id
+        Get-BusinessCentralSalesOrder -Id 12345678
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_salesorder_get
+    #>
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Id
+    )
+
+    If($Id){
+        $Endpoint = "/salesOrders($Id)"
+    }
+    else{
+        $Endpoint = "/salesOrders"
+    }
+
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint
+
+    if($Id){
+        Return $Request    
+    }
+    else{
+        Return $Request.value
+    }   
+}
+function New-BusinessCentralSalesOrder{
+    <#
+    .SYNOPSIS
+        Creates a new Business Central sales order with the given properties.
+    .NOTES
+        Returns the sales order object that was created.
+    .EXAMPLE
+        $NewSalesorderSplat = @{
+            CustomerId = 12345678 #note: this is the GUID, not the number
+        }
+        $SalesOrder = New-BusinessCentralSalesOrder @NewSalesorderSplat
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_salesorder_create
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CustomerId,
+        #Optional fields below here
+        [string]$Number,
+        [string]$BillToName,
+        [string]$RequestedDeliveryDate,
+        [string]$OrderDate,
+        [string]$ExternalDocumentNumber
+    )
+
+    #Dynamically create a hashtable with whatever attributes were specified. Have to do this since you can't have a null key value in hashtables and you may not use all params when creating a new object
+    $Attributes = @{}
+    $Params = $PSBoundParameters
+    $Keys = $PsBoundParameters.Keys
+    foreach ($Key in $Keys){
+        $Attributes.Add($Key,$Params.$Key)
+    }
+
+    $Body = $Attributes | ConvertTo-Json
+
+    $Endpoint = "/salesOrders"
+
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Method Post -Body $Body
+
+    Return $Request.content | ConvertFrom-Json
+}
+function Set-BusinessCentralSalesOrder{
+    <#
+    .SYNOPSIS
+        Creates a new Business Central sales order with the given properties.
+    .NOTES
+        Returns the sales order object that was created.
+    .EXAMPLE
+        $NewSalesorderSplat = @{
+        CustomerId = 12345678 #note: this is the GUID, not the number
+        }
+        $SalesOrder = New-BusinessCentralSalesOrder @NewSalesorderSplat
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_salesorder_create
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CustomerId,
+        [Parameter(Mandatory = $true)]
+        [string]$OrderId,
+        #Optional fields below here
+        [string]$Number,
+        [string]$BillToName,
+        [string]$RequestedDeliveryDate,
+        [string]$OrderDate,
+        [string]$ExternalDocumentNumber
+    )
+
+    #Dynamically create a hashtable with whatever attributes were specified. Have to do this since you can't have a null key value in hashtables and you may not use all params when creating a new object
+    $Attributes = @{}
+    $Params = $PSBoundParameters
+    $Keys = $PsBoundParameters.Keys
+    foreach ($Key in $Keys){
+        $Attributes.Add($Key,$Params.$Key)
+    }
+
+    $Body = $Attributes | ConvertTo-Json
+
+    $Endpoint = "/salesOrders/($OrderId)"
+
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Method Patch -Body $Body
+
+    Return $Request.content | ConvertFrom-Json
+}
+function Get-BusinessCentralSalesOrderLine{
+    <#
+    .SYNOPSIS
+        Gets Business Central sales order lines.
+    .EXAMPLE
+        #Get all sales order lines     
+        Get-BusinessCentralSalesOrderLine -OrderId 12345678
+
+        #Get specific line
+        Get-BusinessCentralSalesOrderLine -OrderId 12345678 -Id 1029384
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_salesorderline_get
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OrderId,
+        [Parameter(Mandatory = $false)]
+        [string]$Id
+    )
+
+    $Endpoint = "/salesOrders($OrderId)/salesOrderLines"
+    if($Id){$Endpoint += "($Id)"}
+
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint
+
+    if($Id){
+        Return $Request    
+    }
+    else{
+        Return $Request.value
+    }   
+}
+function Set-BusinessCentralSalesOrderLine{
+    <#
+    .SYNOPSIS
+        Updates a Business Central sales order line.
+    .EXAMPLE
+        #Update a line
+        Set-BusinessCentralSalesOrderLine -OrderId 12345678 -Id 1029384 -Quantity 10
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/api/dynamics_salesorderline_get
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OrderId,
+        [Parameter(Mandatory = $true)]
+        [string]$Id,
+        #Optional fields below here
+        [string]$Sequence,
+        [string]$Description,
+        [string]$Description2,
+        [decimal]$Quantity
+    )
+
+    $Endpoint = "/salesOrders($OrderId)/salesOrderLines($Id)"
+
+    $Attributes = @{}
+    $Params = $PSBoundParameters
+    $Keys = $PsBoundParameters.Keys
+    foreach ($Key in $Keys){
+        if($Key -ne "OrderId"){
+            $Attributes.Add($Key,$Params.$Key)
+        }
+    }
+
+    $Body = $Attributes | ConvertTo-Json
+
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Body $Body -Method Patch
+
+    if($Request.StatusCode -ne '200'){
+        Write-Error "Failed to update sales order line $Request"
+    }
+}
+function Get-BusinessCentralSubscription{
+    <#
+    .SYNOPSIS
+        Gets a list of subscriptions (registered webhooks).
+    .EXAMPLE
+        #Get all subscriptions
+        Get-BusinessCentralSubscription
+
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/dynamics-subscriptions
+    #>
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Id
+    )
+
+    $Endpoint = "/subscriptions"
+
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -NoCompanyContext
+
+    Return $Request.value
+}
+function New-BusinessCentralSubscription{
+    <#
+    .SYNOPSIS
+        Registers a new subscription (webhook) in Business Central.
+    .EXAMPLE
+
+    .NOTES
+        Subscriptions expire after 3d unless renewed. See the Renew-BusinessCentralSubscription cmdlet for more information.
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/dynamics-subscriptions#register-a-webhook-subscription
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$NotificationUrl,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Customers","SalesOrders","SalesInvoices","SalesQuotes","Vendors")]
+        [string]$ObjectType,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Created","Deleted","Updated")]
+        [string]$ChangeType
+    )
+
+    Write-Host -ForegroundColor Yellow ""
+
+    $Endpoint = "/subscriptions"
+
+    $Company = $ENV:BusinessCentralApiCompanyContext
+    $Resource = "/api/v2.0/companies($Company)/$ObjectType"
+
+    $Body = @{
+        notificationUrl = $NotificationUrl
+        resource = $Resource
+    } | ConvertTo-Json
+
+    $Request = InvokeBusinessCentralApi -Endpoint $Endpoint -Method Post -Body $Body -NoCompanyContext
+
+    Return $Request
+}
+function Renew-BusinessCentralSubscription{
+    <#
+    .SYNOPSIS
+        Renews a subscription in Business Central.
+    .EXAMPLE
+
+    .NOTES
+        Renewing a subscription (like registering a new one) requires a handshake with the webhook being registered, as such you must ensure your webhook is configured to complete the handshake.
+    .LINK
+        https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/dynamics-subscriptions#renewing-the-subscription
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Id
+    )
 }
