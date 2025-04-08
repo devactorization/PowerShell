@@ -1,5 +1,11 @@
+param(
+    [Parameter(Mandatory = $True,ValueFromPipeline = $True, Position = 1)]
+        [string]$FQDN,
+        [int]$Port = 443
+)
 #This function gets the TLS cert for a given hostname
 #It can be useful when troubleshooting issues with failing HTTPS requests, etc.
+
 
 function Get-CertInfo {
     param(
@@ -27,7 +33,7 @@ function Get-CertInfo {
     Return $Object
 }
 
-$Result = Get-CertInfo -Hostname "google.com"
+$Result = Get-CertInfo -Hostname $FQDN -Port $Port
 $Result | Format-List *
 
 
