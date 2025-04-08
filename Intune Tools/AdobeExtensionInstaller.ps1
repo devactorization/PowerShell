@@ -45,7 +45,7 @@ if(Test-Path $UPIA){
     }
     #Install
     else{
-        $ExtensionPath = $PSScriptRoot + '\' + $ExtensionFileName
+        $ExtensionPath = '"' + $PSScriptRoot + '\' + $ExtensionFileName + '"'
 
         try{
             $Process = Start-Process -Wait -FilePath $UPIA -ArgumentList "/install $ExtensionPath" -PassThru -NoNewWindow
