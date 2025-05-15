@@ -12,7 +12,7 @@ function InvokeBambooApi {
         $Body
     )
 
-    $CompanyDomain = "engagestar"
+    $CompanyDomain = $Env:BambooApiCompanyDomain
     $BaseApiUrl = "https://api.bamboohr.com/api/gateway.php/$CompanyDomain/v1"
 
     #Make sure the ENV is already set for the API token and auth headers
@@ -74,10 +74,13 @@ function Connect-BambooApi {
     #>
     param(
         [Parameter(Mandatory = $true)]
-        [string]$ApiKey
+        [string]$ApiKey,
+        [Parameter(Mandatory = $true)]
+        [string]$CompanyDomain
     )
 
     $Env:BambooApiKey = $ApiKey
+    $Env:BambooApiCompanyDomain = $CompanyDomain
 
     #Using this API endpoint to test the connection
     $CompanyInfoEndpoint = "/company_information"
